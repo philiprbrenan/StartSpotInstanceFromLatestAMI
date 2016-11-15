@@ -77,6 +77,19 @@ which should produce something like:
      ]
  }
 
+=head4 IAM users
+
+If you are configuring an IAM userid please make sure that this userid is permitted
+to execute the following commands:
+
+ aws ec2 describe-images
+ aws ec2 describe-key-pairs
+ aws ec2 describe-security-groups
+ aws ec2 describe-spot-price-history
+ aws ec2 request-spot-instances
+
+as these commands are used by the script to retrieve information required to
+start the spot instance.
 
 =head3 Perl
 
@@ -152,14 +165,14 @@ L<https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI>
 
 # Start user configuration
 my $keyPair            = qr(AmazonKeyPair);                                     # Choose the keypair via a regular expression which matches the key pair name
-my $security           = qr(open);                                              # Choose the security group via a regular expression which matches the description of the security group
+my $security           = qr(open);                                              # Choose the security group via a regular expression which matches the description or the name of the security group
 my $instanceTypes      = qr(\A[mt]\d\.);                                        # Choose the instance types to consider via a regular expression. The latest spot instance prices will be rerueved and presented to the user allowing a manual selection on price to be made
 my $productDescription = "Linux/UNIX";                                          # General type of OS to be run on the instance - Windows is 4x Linux in price.
 my $bidPriceMultiplier = 1.25;                                                  # Multiply the spot price by this value to get the bid price for the spot instance
 
 my $testing              = 0;                                                   # 0 - for real, not testing, 1 - Use previous test results rather than executing commands
 my $logging              = 0;                                                   # 0 - no debug logging, 1 - write debugging messages to show what is happening
-my $useTestPrice         = 1;                                                   # 0 - use a bid price computed from the current spot price that is likely to work, 1 - use the following price for the requested spot request for testing purposes
+my $useTestPrice         = 0;                                                   # 0 - use a bid price computed from the current spot price that is likely to work, 1 - use the following price for the requested spot request for testing purposes
 my $testSpotRequestPrice = 0.002;                                               # A price (in US dollars) low enough to be rejected for any spot request yet still be accepted as syntactically correct
 # End user configuration
 
@@ -215,11 +228,11 @@ sub latestImage                                                                 
   unless($r)
    {my @i;
     for(@{$p->{Images}})
-     {my ($d, $n, $i) = @$_{qw(CreationDate Description ImageId)};
-      push @i, [$i, $n, $d];
-      say STDERR "$i  $n  $d" if $logging;
+     {my ($c, $d, $i) = @$_{qw(CreationDate Description ImageId)};
+      push @i, [$i, $c, $d];
+      say STDERR "$i  $c  $d" if $logging;
      }
-    my @I = sort {$b->[2] cmp $a->[2]} @i;                                      # Images, with most recent first
+    my @I = sort {$b->[1] cmp $a->[1]} @i;                                      # Images, with most recent first
     return $I[0];                                                               # Latest image name
    }
   confess red("No images available, please logon to AWS and create one");
@@ -245,8 +258,8 @@ sub checkedSecurityGroup                                                        
   unless($r)
    {my @g;
     for(@{$p->{SecurityGroups}})
-     {my ($d, $g, $o, $n) = @$_{qw(Description GroupId OwnerId GroupName)};
-      push @g, [$g, $d]  if $d =~ m/$security/i;
+     {my ($d, $g) = @$_{qw(Description GroupId)}; $d //= '' ;                   # Ensure description is not null
+      push @g, [$g, $d]  if $d =~ m/$security/i or $g =~ m/$security/i;
       say STDERR "$g $d" if $logging;
      }
     return $g[0] if @g == 1;                                                    # Found the matching key pair
@@ -313,7 +326,7 @@ sub requestSpotInstance
   say STDERR yellow("Enter number of instance type to request (above) or just hit enter to abort:");
 
   my $r = $testing ? "1\n" :  <>; chomp($r);
-  unless($r == $r + 0)
+  unless($r =~ /\A\d+\Z/ and $r > 0 and $r <= @spotPriceHistory)
    {confess red("No spot instance requested");
    }
   my ($spotType, $spotZone, $spotPrice) = @{$spotPriceHistory[substr($r, 0, 1)-1]};
@@ -476,7 +489,7 @@ sub testDescribeSpotPriceHistory {<<END}
             "SpotPrice": "0.033000",
             "Timestamp": "2016-11-12T19:12:16.000Z",
             "ProductDescription": "Linux/UNIX"
-        },
+        }
     ]
 }
 END
@@ -487,7 +500,7 @@ sub testDescribeKeyPairs {<<END}                                                
         {
             "KeyName": "AmazonKeyPair",
             "KeyFingerprint": "b5:b6:f2:06:f3:13:76:5d:37:46:72:cf:2a:6b:cd:f2:0f:71:6a:2c"
-        },
+        }
     ]
 }
 END
@@ -642,7 +655,7 @@ sub testDescribeSecurityGroups {<<END}                                          
             ],
             "OwnerId": "123456789012",
             "GroupName": "open"
-        },
+        }
     ]
 }
 END
