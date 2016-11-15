@@ -33,24 +33,49 @@ Download/install the AWS CLI from:
 
 ## Configuration
 
+### AWS
+
 Run:
 
     aws configure
 
-to set up the AWS CLI used by this script.
+to set up the AWS CLI used by this script.  The last question asked by aws
+configure:
 
-Then use:
+    Default output format [json]:
+
+must be answered json.
+
+You can confirm that aws cli is correctly installed by executing:
+
+    aws ec2 describe-availability-zones
+
+which should produce something like:
+
+    {   "AvailabilityZones": [
+            {   "ZoneName": "us-east-1a",
+                "RegionName": "us-east-1",
+                "Messages": [],
+                "State": "available"
+            },
+        ]
+    }
+
+### Perl
+
+To configure this Perl script you should use the AWS EC2 console at:
 
 [https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:sort=tag:Name](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:sort=tag:Name)
 
-to start an instance and in the process create a security group and a key pair
-whose details should be recorded below in this script in the section marked
-user configuration. Snap shot the running instance to create an Amazon Machine
-Image (AMI) which can then be restarted quickly and conveniently with this
-script. The script automatically finds the latest snapshot each time so there
-is no need to update this script to account for each new snapshot made.
+to start and snap shot an instance, in the process creating the security group
+and key pair whose details should be recorded below in this script in the
+section marked b&lt;user configuration>. Snap shot the running instance to create
+an Amazon Machine Image (AMI) which can then be restarted quickly and
+conveniently using this script. The script automatically finds the latest
+snapshot each time it is run so there is no need to update this script to
+account for each new snapshot made.
 
-Configure this script by filling in the values in the 'user configuration'
+Configure this script by filling in the values in the b&lt;user configuration>
 area below.
 
 ## Operation

@@ -39,7 +39,7 @@ You might need to install the following perl modules:
 
  cpan install Data::Dump Term::ANSIColor Carp JSON
 
-=head2 Prequisites
+=head3 AWS Command Line Interface
 
 Prior to using this script you should:
 
@@ -47,26 +47,52 @@ Download/install the AWS CLI from:
 
 L<http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>
 
-and run:
+=head2 Configuration
+
+=head3 AWS
+
+Run:
 
  aws configure
 
-to set up the AWS CLI used by this script.
+to set up the AWS CLI used by this script.  The last question asked by aws
+configure:
 
-Then use:
+ Default output format [json]:
+
+must be answered json.
+
+You can confirm that aws cli is correctly installed by executing:
+
+ aws ec2 describe-availability-zones
+
+which should produce something like:
+
+ {   "AvailabilityZones": [
+         {   "ZoneName": "us-east-1a",
+             "RegionName": "us-east-1",
+             "Messages": [],
+             "State": "available"
+         },
+     ]
+ }
+
+
+=head3 Perl
+
+To configure this Perl script you should use the AWS EC2 console at:
 
 L<https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:sort=tag:Name>
 
-to start an instance and in the process create a security group and a key pair
-whose details should be recorded below in this script in the section marked
-user configuration. Snap shot the running instance to create an Amazon Machine
-Image (AMI) which can then be restarted quickly and conveniently with this
-script. The script automatically finds the latest snapshot each time so there
-is no need to update this script to account for each new snapshot made.
+to start and snap shot an instance, in the process creating the security group
+and key pair whose details should be recorded below in this script in the
+section marked b<user configuration>. Snap shot the running instance to create
+an Amazon Machine Image (AMI) which can then be restarted quickly and
+conveniently using this script. The script automatically finds the latest
+snapshot each time it is run so there is no need to update this script to
+account for each new snapshot made.
 
-=head2 Configuration
-
-Configure this script  by filling in the values in the 'user configuration'
+Configure this script by filling in the values in the b<user configuration>
 area below.
 
 =head2 Operation
@@ -75,8 +101,31 @@ Run:
 
  perl startSpotInstanceFromLatestAMI.pl
 
-to start a spot instance. Unwanted spot instances should be cancelled promptly
-at:
+For example:
+
+ Image         : ami-f0a6bd98 created at 2015-05-22T08:11:43.000Z - Ubuntu 2015-05-22
+ Key pair      : AmazonKeyPair
+ Security group: sg-915543f9 - open access
+ Number  Type                    Price   Zone
+ 001     t1.micro                0.0037  us-east-1c
+ 002     m1.small                0.0073  us-east-1b
+ 003     m1.medium               0.0088  us-east-1c
+ 004     m3.medium               0.0143  us-east-1e
+ 005     m1.large                0.0166  us-east-1b
+ 006     m3.large                0.0195  us-east-1c
+ 007     m1.xlarge               0.0330  us-east-1b
+ 008     m3.xlarge               0.0394  us-east-1c
+ 009     m2.xlarge               0.0481  us-east-1b
+ 010     m2.2xlarge              0.0651  us-east-1a
+ 011     m2.4xlarge              0.0914  us-east-1c
+ 012     m3.2xlarge              0.1372  us-east-1c
+ Enter number of instance type to request (above) or just hit enter to abort:
+ 1
+ Your Spot request has been submitted for review, and is pending evaluation.
+
+to choose and start a t1.micro spot instance.
+
+Unwanted spot instances should be cancelled promptly at:
 
 L<https://console.aws.amazon.com/ec2sp/v1/spot/home>
 
@@ -100,7 +149,6 @@ Please reports bugs as issues on this project at GitHub:
 L<https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI>
 
 =cut
-#pod2markdown < startSpotInstanceFromLatestAMI.pl > README.md
 
 # Start user configuration
 my $keyPair            = qr(AmazonKeyPair);                                     # Choose the keypair via a regular expression which matches the key pair name
@@ -108,12 +156,12 @@ my $security           = qr(open);                                              
 my $instanceTypes      = qr(\A[mt]\d\.);                                        # Choose the instance types to consider via a regular expression. The latest spot instance prices will be rerueved and presented to the user allowing a manual selection on price to be made
 my $productDescription = "Linux/UNIX";                                          # General type of OS to be run on the instance - Windows is 4x Linux in price.
 my $bidPriceMultiplier = 1.25;                                                  # Multiply the spot price by this value to get the bid price for the spot instance
-# End user configuration
 
-my $testing              = 0;                                                   # Use test results rather than executing commands
-my $logging              = 0;                                                   # Write logging messages to show what is happening
-my $useTestPrice         = 1;                                                   # Use the following price for the requested spot request for testing purposes
+my $testing              = 0;                                                   # 0 - for real, not testing, 1 - Use previous test results rather than executing commands
+my $logging              = 0;                                                   # 0 - no debug logging, 1 - write debugging messages to show what is happening
+my $useTestPrice         = 1;                                                   # 0 - use a bid price computed from the current spot price that is likely to work, 1 - use the following price for the requested spot request for testing purposes
 my $testSpotRequestPrice = 0.002;                                               # A price (in US dollars) low enough to be rejected for any spot request yet still be accepted as syntactically correct
+# End user configuration
 
 sub yellow(@) {colored(join('', @_), 'yellow bold')}                            # Write stuff in yellow
 sub green (@) {colored(join('', @_), 'green  bold')}                            # Write stuff in green
@@ -302,6 +350,7 @@ requestSpotInstance;                                                            
 #-------------------------------------------------------------------------------
 # Test data
 #-------------------------------------------------------------------------------
+#pod2markdown < startSpotInstanceFromLatestAMI.pl > README.md
 
 sub instanceTypes{split /\n/, <<END}
 t1.micro
