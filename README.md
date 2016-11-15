@@ -23,7 +23,7 @@ You might need to install the following perl modules:
 
     cpan install Data::Dump Term::ANSIColor Carp JSON
 
-## Prequisites
+### AWS Command Line Interface
 
 Prior to using this script you should:
 
@@ -31,7 +31,9 @@ Download/install the AWS CLI from:
 
 [http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
 
-and run:
+## Configuration
+
+Run:
 
     aws configure
 
@@ -48,9 +50,7 @@ Image (AMI) which can then be restarted quickly and conveniently with this
 script. The script automatically finds the latest snapshot each time so there
 is no need to update this script to account for each new snapshot made.
 
-## Configuration
-
-Configure this script  by filling in the values in the 'user configuration'
+Configure this script by filling in the values in the 'user configuration'
 area below.
 
 ## Operation
@@ -58,6 +58,8 @@ area below.
 Run:
 
     perl startSpotInstanceFromLatestAMI.pl
+
+For example:
 
     Image         : ami-f0a6bd98 created at 2015-05-22T08:11:43.000Z - Ubuntu 2015-05-22
     Key pair      : AmazonKeyPair
