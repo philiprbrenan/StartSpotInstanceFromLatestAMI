@@ -83,13 +83,13 @@ To configure this Perl script you should use the AWS EC2 console at:
 
 to start and snap shot an instance, in the process creating the security group
 and key pair whose details should be recorded below in this script in the
-section marked b&lt;user configuration>. Snap shot the running instance to create
+section marked **user configuration**. Snap shot the running instance to create
 an Amazon Machine Image (AMI) which can then be restarted quickly and
 conveniently using this script. The script automatically finds the latest
 snapshot each time it is run so there is no need to update this script to
 account for each new snapshot made.
 
-Configure this script by filling in the values in the b&lt;user configuration>
+Configure this script by filling in the values in the **user configuration**
 area below.
 
 ## Operation
