@@ -61,6 +61,20 @@ which should produce something like:
         ]
     }
 
+#### IAM users
+
+If you are configuring an IAM userid please make sure that this userid is permitted
+to execute the following commands:
+
+    aws ec2 describe-images
+    aws ec2 describe-key-pairs
+    aws ec2 describe-security-groups
+    aws ec2 describe-spot-price-history
+    aws ec2 request-spot-instances
+
+as these commands are used by the script to retrieve information required to
+start the spot instance.
+
 ### Perl
 
 To configure this Perl script you should use the AWS EC2 console at:
