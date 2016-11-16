@@ -367,7 +367,11 @@ sub requestSpotInstance
    {wn red "No spot instance requested";
     return
    }
-  my ($spotType, $spotZone, $spotPrice) = @{$spotPriceHistory[substr($r, 0, 1)-1]};
+  my ($spotType, $spotZone, $spotPrice) = @{$spotPriceHistory[$r-1]};
+  wn sprintf("%03s     %s  %s  %s", $r,
+     green (sprintf("%-20.20s", $spotType)),
+     yellow(sprintf("%8.4f",    $spotPrice)),
+     red($spotZone));
 
   my $spec = <<END;                                                             # Instance specification
  {"ImageId": "$imageId",
@@ -408,12 +412,14 @@ sub checkVersion
 
 checkVersion;                                                                   # Check version
 
-eval {requestSpotInstance};                                                     # Request an instance
-
-if ($@)
- {Red "Please send me file:\n$logFile\n";
+if ($testing) {requestSpotInstance}                                             # Test requesting an instance
+else
+ {eval {requestSpotInstance};                                                   # Request an instance
+  if ($@)
+   {Red "Please send me file:\n$logFile\n";
+   }
+  else {unlink $logFile}                                                        # Not needed  if we got here
  }
-else {unlink $logFile}                                                          # Not needed  if we got here
 
 #-------------------------------------------------------------------------------
 # Test data
