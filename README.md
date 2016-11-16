@@ -42,7 +42,7 @@ configure:
 
     Default output format [json]:
 
-must be answered json.
+must be answered **json**.
 
 You can confirm that aws cli is correctly installed by executing:
 
