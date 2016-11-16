@@ -6,12 +6,12 @@ Starts a cheap spot instance on Amazon Web Services (AWS) from your latest
 Amazon Machine Image (AMI) snap shot more conveniently than using the AWS EC2
 console to repetitively perform this task.
 
-Offers the user a list of machine types of interest and their latest spot
-prices on which to run the latest AMI.
+Offers a list of machine types of interest and their latest spot prices on
+which to run the latest AMI.
 
 ## Installation
 
-Download this single standalone script to any convenient folder.
+Download this single standalone Perl script to any convenient folder.
 
 ### Perl
 
@@ -25,9 +25,7 @@ You might need to install the following perl modules:
 
 ### AWS Command Line Interface
 
-Prior to using this script you should:
-
-Download/install the AWS CLI from:
+Prior to using this script you should download/install the AWS CLI from:
 
 [http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
 
@@ -79,7 +77,7 @@ start the spot instance.
 
 To configure this Perl script you should use the AWS EC2 console at:
 
-[https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:sort=tag:Name](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:sort=tag:Name)
+[https://console.aws.amazon.com/ec2/v2/home](https://console.aws.amazon.com/ec2/v2/home)
 
 to start and snap shot an instance, in the process creating the security group
 and key pair whose details should be recorded below in this script in the
@@ -146,3 +144,12 @@ Please reports bugs as issues on this project at GitHub:
 [https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI](https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI)
 
 and attach a copy of the indicated log file if appropriate.
+
+## Licence
+
+Perl Artistic License 2.0
+
+[http://www.perlfoundation.org/artistic\_license\_2\_0/](http://www.perlfoundation.org/artistic_license_2_0/)
+
+This module is free software. It may be used, redistributed and/or modified
+under the same terms as Perl itself.
