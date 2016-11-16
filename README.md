@@ -21,7 +21,7 @@ Perl can be obtained at:
 
 You might need to install the following perl modules:
 
-    cpan install Data::Dump Term::ANSIColor Carp JSON
+    cpan install Data::Dump Term::ANSIColor Carp JSON POSIX
 
 ### AWS Command Line Interface
 
@@ -144,3 +144,5 @@ script will automatically start the latest such AMI created.
 Please reports bugs as issues on this project at GitHub:
 
 [https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI](https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI)
+
+and attach a copy of the indicated log file if appropriate.

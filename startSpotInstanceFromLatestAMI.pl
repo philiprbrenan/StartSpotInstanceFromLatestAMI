@@ -11,6 +11,7 @@ use Data::Dump qw(dump);
 use Term::ANSIColor;
 use Carp;
 use JSON;
+use POSIX qw(strftime);                                                         # http://www.cplusplus.com/reference/ctime/strftime/
 
 =pod
 
@@ -37,7 +38,7 @@ L<http://www.perl.org>
 
 You might need to install the following perl modules:
 
- cpan install Data::Dump Term::ANSIColor Carp JSON
+ cpan install Data::Dump Term::ANSIColor Carp JSON POSIX
 
 =head3 AWS Command Line Interface
 
@@ -161,6 +162,8 @@ Please reports bugs as issues on this project at GitHub:
 
 L<https://github.com/philiprbrenan/StartSpotInstanceFromLatestAMI>
 
+and attach a copy of the indicated log file if appropriate.
+
 =cut
 
 # Start user configuration
@@ -171,14 +174,44 @@ my $productDescription = "Linux/UNIX";                                          
 my $bidPriceMultiplier = 1.25;                                                  # Multiply the spot price by this value to get the bid price for the spot instance
 
 my $testing              = 0;                                                   # 0 - for real, not testing, 1 - Use previous test results rather than executing commands
-my $logging              = 0;                                                   # 0 - no debug logging, 1 - write debugging messages to show what is happening
 my $useTestPrice         = 0;                                                   # 0 - use a bid price computed from the current spot price that is likely to work, 1 - use the following price for the requested spot request for testing purposes
-my $testSpotRequestPrice = 0.002;                                               # A price (in US dollars) low enough to be rejected for any spot request yet still be accepted as syntactically correct
+my $testSpotRequestPrice = 0.001;                                               # A price (in US dollars) low enough to be rejected for any spot request yet still be accepted as syntactically correct
 # End user configuration
 
-sub yellow(@) {colored(join('', @_), 'yellow bold')}                            # Write stuff in yellow
-sub green (@) {colored(join('', @_), 'green  bold')}                            # Write stuff in green
-sub red   (@) {colored(join('', @_), 'red    bold')}                            # Write stuff in red
+sub timeStamp()     {strftime('%H:%M:%S', localtime)}
+
+my $logFile = "zzz$0.data"; unlink $logFile;                                    # Log file
+
+sub Log                                                                         # Append a message to the log file
+ {my $t = join '', @_;
+  my $f;
+  open $f, ">>$logFile" or confess "Cannot open file $logFile";
+  say {$f} &timeStamp, ' ', $t;
+ }
+
+sub wc(@)                                                                       # Colour a message
+ {my $c = shift;
+  my $t = join '', @_;
+  $^O =~ /linux/i ? colored($t, $c) : $t;
+ }
+
+sub ws(@)                                                                       # Write a message possibly in colour and append it to the log file
+ {my ($c, @t) = @_;
+  Log(@t);
+  say STDERR wc(@_);
+ }
+
+sub wn(@)                                                                       # Write a message normally
+ {Log(@_);
+  say STDERR @_;
+ }
+
+sub Yellow(@) {ws('yellow bold', @_)}                                           # Write stuff in yellow
+sub Green (@) {ws('green  bold', @_)}                                           # Write stuff in green
+sub Red   (@) {ws('red    bold', @_); confess @_, "\n"}                         # Write stuff in red and confess
+sub yellow(@) {wc('yellow bold', @_)}                                           # Wrap stuff in yellow
+sub green (@) {wc('green  bold', @_)}                                           # Wrap stuff in green
+sub red   (@) {wc('red    bold', @_)}                                           # Wrap stuff in red
 
 sub awsEc2($;$)                                                                 # Execute an Ec2 command and return the error code and Json converted to a Perl data structure
  {my ($c, $t) = @_;                                                             # Command, test data
@@ -191,8 +224,8 @@ sub awsEc2($;$)                                                                 
     ($p, $r);
    }->();
 
+  Log 'awsEc2 ', dump({r=>$r, j=>$j});
   my $p = decode_json($j);
-  say STDERR "$r $c" if $logging;
   ($r, $p)
  }
 
@@ -218,7 +251,7 @@ sub describeSpotPriceHistory(@)
  {my @types = @_;                                                               # Instance types which match the re for which spot history is required
   my $types = join ' ', @types;
   my $time  = time(); my $timeStart = $time-3600;                               # Last hour of spot pricing history
-   awsEc2(<<END, &testDescribeSpotPriceHistory)
+ awsEc2(<<END, &testDescribeSpotPriceHistory)
 describe-spot-price-history --instance-types $types --start-time $timeStart --end-time $time --product-description "$productDescription"
 END
  }
@@ -228,14 +261,14 @@ sub latestImage                                                                 
   unless($r)
    {my @i;
     for(@{$p->{Images}})
-     {my ($c, $d, $i) = @$_{qw(CreationDate Description ImageId)};
+     {my ($c, $d, $i) = @$_{qw(CreationDate Description ImageId)}; $d //= '';
       push @i, [$i, $c, $d];
-      say STDERR "$i  $c  $d" if $logging;
      }
+    Log 'latestImage ', dump(\@i);
     my @I = sort {$b->[1] cmp $a->[1]} @i;                                      # Images, with most recent first
     return $I[0];                                                               # Latest image name
    }
-  confess red("No images available, please logon to AWS and create one");
+  Red "No images available, please logon to AWS and create one";
  }
 
 sub checkedKeyPair                                                              # Key pair that matches the keyPair global
@@ -245,12 +278,12 @@ sub checkedKeyPair                                                              
     for(@{$p->{KeyPairs}})
      {my ($n, $f) = @$_{qw(KeyName KeyFingerprint)};
       push @k, $n if $n =~ m/$keyPair/i;
-      say STDERR $n if $logging;
      }
+    Log 'checkedKeyPair ', dump(@k);
     return $k[0] if @k == 1;                                                    # Found the matching key pair
-    confess red("No unique match for key pair $keyPair, please choose one from the list above and use it to set the keyPair global variable at the top of this script");
+    Red "No unique match for key pair $keyPair, please choose one from the list above and use it to set the keyPair global variable at the top of this script";
    }
-  confess red("No key pairs available, please logon to AWS and create one");
+  Red "No key pairs available, please logon to AWS and create one";
  }
 
 sub checkedSecurityGroup                                                        # Choose the security group that matches the securityGroup global
@@ -260,19 +293,20 @@ sub checkedSecurityGroup                                                        
     for(@{$p->{SecurityGroups}})
      {my ($d, $g) = @$_{qw(Description GroupId)}; $d //= '' ;                   # Ensure description is not null
       push @g, [$g, $d]  if $d =~ m/$security/i or $g =~ m/$security/i;
-      say STDERR "$g $d" if $logging;
      }
+    Log 'checkedSecurityGroup ', dump(\@g);
     return $g[0] if @g == 1;                                                    # Found the matching key pair
-    confess red("No unique match for key pair $security, please choose one from the list above and use it to set the security global variable at the top of this script");
+    Red "No unique match for key pair $security, please choose one from the list above and use it to set the security global variable at the top of this script";
    }
-  confess red("No security groups available, please logon to AWS and create one");
+  Red "No security groups available, please logon to AWS and create one";
  }
 
 sub checkedInstanceTypes                                                        # Choose the instance types of interest
  {my @I = &instanceTypes;
   my @i = grep {/$instanceTypes/i} @I;
+  Log 'checkedInstanceTypes ', dump(\@i);
   return @i if @i;                                                              # Found the matching key pair
-  confess red("Please choose from: ". join(' ', @I). " using the instanceType global at the top of this script");
+  Red "Please choose from: ". join(' ', @I). " using the instanceType global at the top of this script";
  }
 
 sub spotPriceHistory(@)                                                         # Get spot prices for instances of interest
@@ -284,6 +318,7 @@ sub spotPriceHistory(@)                                                         
      {my ($t, $z, $p) = @$_{qw(InstanceType AvailabilityZone SpotPrice)};
       push @{$p{$t}{$z}}, $p;
      }
+    Log 'spotPriceHistory 1111 ', dump(\%p);
     for   my $t(keys %p)                                                        # Average price for each zone
      {for my $z(keys %{$p{$t}})
        {my @p = @{$p{$t}{$z}};
@@ -291,6 +326,7 @@ sub spotPriceHistory(@)                                                         
         $p{$t}{$z} = $a;
        }
      }
+    Log 'spotPriceHistory 2222 ', dump(\%p);
     for   my $t(keys %p)                                                        # Cheapest zone for each type
      {my $Z;
       for my $z(keys %{$p{$t}})
@@ -298,36 +334,38 @@ sub spotPriceHistory(@)                                                         
        }
       $p{$t} = [$t, $Z, $p{$t}{$Z}];
      }
+    Log 'spotPriceHistory 3333 ', dump(\%p);
     return map {$p{$_}} sort {$p{$a}[2] <=> $p{$b}[2]} keys %p;                 # Cheapest zone and price for each type in price order
    }
-  confess red("No spot history available");
+  Red "No spot history available";
  }
 
 sub requestSpotInstance
  {my $latestImage = &latestImage;
   my ($imageId, $imageDescription, $imageDate) = @$latestImage;
-  say STDERR "Image         : ", green($imageId), " created at $imageDate - $imageDescription";
+  wn "Image         : ", green($imageId), " created at $imageDate - $imageDescription";
 
   my $keyPair = &checkedKeyPair;
-  say STDERR "Key pair      : ", green($keyPair);
+  wn "Key pair      : ", green($keyPair);
 
   my $securityGroup = &checkedSecurityGroup;
   my ($securityGroupName, $securityGroupDesc) = @$securityGroup;
-  say STDERR "Security group: ", green($securityGroupName), " - $securityGroupDesc";
+  wn "Security group: ", green($securityGroupName), " - $securityGroupDesc";
 
   my @instanceTypes = checkedInstanceTypes;
   my @spotPriceHistory = spotPriceHistory(@instanceTypes);                      # Get spot prices for instances of interest
 
-  say STDERR green("Number  Type                    Price   Zone");
+  Green("Number  Type                    Price   Zone");
   for(1..@spotPriceHistory)
    {my ($spotType, $spotZone, $spotPrice) = @{$spotPriceHistory[$_-1]};
-    say STDERR sprintf("%03s     %-20.20s  %8.4f  %.16s", $_,  $spotType,  $spotPrice, $spotZone);
+    wn sprintf("%03s     %-20.20s  %8.4f  %.16s", $_,  $spotType,  $spotPrice, $spotZone);
    }
-  say STDERR yellow("Enter number of instance type to request (above) or just hit enter to abort:");
+  Yellow("Enter number of instance type to request (above) or just hit enter to abort:");
 
-  my $r = $testing ? "1\n" :  <>; chomp($r);
+  my $r = $testing ? "1\n" :  <>; $r //= ''; chomp($r);
   unless($r =~ /\A\d+\Z/ and $r > 0 and $r <= @spotPriceHistory)
-   {confess red("No spot instance requested");
+   {wn red "No spot instance requested";
+    return
    }
   my ($spotType, $spotZone, $spotPrice) = @{$spotPriceHistory[substr($r, 0, 1)-1]};
 
@@ -350,15 +388,32 @@ END
    {my ($r, $p) = awsEc2($cmd, &testRequestSpotInstance);
     unless ($r)
      {my $message = $p->{SpotInstanceRequests}[0]{Status}{Message};
-      say STDERR yellow($message);
+      Yellow($message);
       return;
      }
-    confess red("Error requesting spot instance, please go to: https://console.aws.amazon.com/ec2sp/v1/spot/home");
+    Red "Error requesting spot instance, please go to: https://console.aws.amazon.com/ec2sp/v1/spot/home";
    }
-  confess red("Spot instance not requested");
+  Red "Spot instance not requested";
  }
 
-requestSpotInstance;                                                            # Request an instance
+sub checkVersion
+ {my @w = split /\s+/, qx(aws --version);
+  my @v = $w[0] =~ m/(\d+)/g;
+  return 1 if $v[0] >   1;
+  return 1 if $v[1] >= 10;
+  Red "Version  of aws cli too low - please reinstall from: http://docs.aws.amazon.com/cli/latest/userguide/installing.html";
+ }
+
+# Run
+
+checkVersion;                                                                   # Check version
+
+eval {requestSpotInstance};                                                     # Request an instance
+
+if ($@)
+ {Red "Please send me file:\n$logFile\n";
+ }
+else {unlink $logFile}                                                          # Not needed  if we got here
 
 #-------------------------------------------------------------------------------
 # Test data
