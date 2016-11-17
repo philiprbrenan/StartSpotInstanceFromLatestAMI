@@ -59,7 +59,7 @@ configure:
 
  Default output format [json]:
 
-must be answered json.
+must be answered B<json>.
 
 You can confirm that aws cli is correctly installed by executing:
 
@@ -176,7 +176,7 @@ under the same terms as Perl itself.
 # Start user configuration
 my $keyPair            = qr(AmazonKeyPair);                                     # Choose the keypair via a regular expression which matches the key pair name
 my $security           = qr(open);                                              # Choose the security group via a regular expression which matches the description or the name of the security group
-my $instanceTypes      = qr(\A[mt]\d\.);                                        # Choose the instance types to consider via a regular expression. The latest spot instance prices will be rerueved and presented to the user allowing a manual selection on price to be made
+my $instanceTypes      = qr(\A[mt]\d\.);                                        # Choose the instance types to consider via a regular expression. The latest spot instance prices will be retrieved and presented to the user allowing a manual selection on price to be made
 my $productDescription = "Linux/UNIX";                                          # General type of OS to be run on the instance - Windows is 4x Linux in price.
 my $bidPriceMultiplier = 1.25;                                                  # Multiply the spot price by this value to get the bid price for the spot instance
 
@@ -223,6 +223,7 @@ sub red   (@) {wc('red    bold', @_)}                                           
 sub awsEc2($;$)                                                                 # Execute an Ec2 command and return the error code and Json converted to a Perl data structure
  {my ($c, $t) = @_;                                                             # Command, test data
   $c =~ s/\n/ /g; $c = "aws ec2 $c";                                            # Put command on one line
+  Log "awsEc2 1111 $c";
 
   my ($j, $r) = sub                                                             # Test or execute
    {return ($t, 0) if $testing;
@@ -231,7 +232,7 @@ sub awsEc2($;$)                                                                 
     ($p, $r);
    }->();
 
-  Log 'awsEc2 ', dump({r=>$r, j=>$j});
+  Log 'awsEc2 2222 ', dump({r=>$r, j=>$j});
   my $p = decode_json($j);
   ($r, $p)
  }
@@ -380,7 +381,7 @@ sub requestSpotInstance
      yellow(sprintf("%8.4f",    $spotPrice)),
      red($spotZone));
 
-  my $spec = <<END;                                                             # Instance specification
+  my $spec = <<END =~ s/\n/ /gr;                                                # Instance specification
  {"ImageId": "$imageId",
   "KeyName": "$keyPair",
   "SecurityGroupIds": ["$securityGroupName"],
@@ -389,10 +390,16 @@ sub requestSpotInstance
  }
 END
 
+  if ($^O =~ /linux/i)  {$spec = "'$spec'"}
+  else
+   {$spec =~ s/"/\\"/g;
+    $spec = "\"$spec\""
+   }
+
   my $bidPrice = $useTestPrice ? $testSpotRequestPrice : $bidPriceMultiplier * $spotPrice; # Bid price
 
   my $cmd = <<END;                                                              # Command to request spot instance
-request-spot-instances --spot-price $bidPrice --type "one-time" --launch-specification '$spec'
+request-spot-instances --spot-price $bidPrice --type "one-time" --launch-specification $spec
 END
 
   if (1)                                                                        # Execute command requesting spot instance
@@ -408,7 +415,7 @@ END
  }
 
 sub checkVersion
- {my @w = split /\s+/, qx(aws --version);
+ {my @w = split /\s+/, qx(aws --version 2>&1);
   my @v = $w[0] =~ m/(\d+)/g;
   return 1 if $v[0] >   1;
   return 1 if $v[1] >= 10;
